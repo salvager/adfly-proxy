@@ -21,7 +21,7 @@ class HttpResponse (object) :
             # Status
             "%s %s" % (str(self.status), descriptions[self.status]), 
             # Other headers
-            [("Content-type", self.mimetype), ("Content-Length", str(len(self.content)))]
+            [("Content-Type", self.mimetype), ("Content-Length", str(len(self.content)))]
         )
         
 class HttpResponseRedirect (object) :
@@ -35,7 +35,7 @@ class HttpResponseRedirect (object) :
 # ripped right out of the django app's views!       
 def proxy (request, code) :
     try :
-        response = urllib2.urlopen("http://adf.ly/%s" % code)
+        response = urllib2.urlopen("http://adf.ly/%s" % code, timeout=5)
     except urllib2.URLError :
         return HttpResponse("Couldn't connect to adfly.", mimetype="text/plain", status=502)
 
@@ -46,10 +46,28 @@ def proxy (request, code) :
     if matches is None :
         return HttpResponse("Invalid response from adfly.", mimetype="text/plain", status=502)
 
-    url = "http://adf.ly" + matches.group(1)
+    gourl = matches.group(1)
+    prefix = "https://adf.ly"
+
+    # inconsistency is the spice of life
+    if gourl.startswith(prefix) :
+        gourl = gourl[len(prefix):]
+
+    try :
+        con = httplib.HTTPConnection("adf.ly", timeout=5)
+        con.request("GET", gourl)
+    except httplib.HTTPException :
+        return HttpResponse("Couldn't connect adfly to get the destination of the /go/ url.", mimetype="text/plain", status=502)
+    except timeout :
+        return HttpResponse("Connection to adfly for the /go/ url timed out.", mimetype="text/plain", status=502)
+
+    resp = con.getresponse()
+    url = resp.getheader("Location")
+
+    if resp.status != 302 or not url :
+        return HttpResponse("Invalid /go/ response from adfly.", mimetype="text/plain", status=502)
 
     return HttpResponseRedirect(url)
-
  
 def application (environ, start_response) :
     code = environ["REQUEST_URI"][len(environ["SCRIPT_NAME"])+1:]
