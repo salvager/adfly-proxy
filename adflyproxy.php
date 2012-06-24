@@ -27,6 +27,6 @@ $matched = preg_match("/var url = '(.*?)';/", $file, $matches);
 if (!$matched) 
     pdie("Invalid response from adfly.");
 
-header("Location: " . $matches[1]);
+header("Location: http://adf.ly" . $matches[1]);
 
 ?>

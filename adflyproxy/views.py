@@ -15,4 +15,6 @@ def proxy (request, code) :
     if matches is None :
         return HttpResponse("Invalid response from adfly.", mimetype="text/plain", status=502)
 
-    return HttpResponseRedirect(matches.group(1))
+    url = "http://adf.ly" + matches.group(1)
+
+    return HttpResponseRedirect(url)
